@@ -1,33 +1,49 @@
 import sys
 import pickle
+import os
 from common import urlparse
 from common import parse_qs, clean_dict
 from urls import UrlRule, NotFoundException, AmbiguousUrlException
 from urllib import urlencode
 
-import xbmc
-import xbmcgui
-import xbmcplugin
-import xbmcaddon
+#from . import xbmc
+#from . import xbmcgui
+#from . import xbmcplugin
+#from . import xbmcaddon
+from xbmcswift import xbmc, xbmcgui, xbmcplugin, xbmcaddon
+#import xbmc
+#import xbmcgui
+#import xbmcplugin
+#import xbmcaddon
+
+debug_modes = ['test', 'interactive', 'crawl']
 
 class Plugin(object):
-    def __init__(self, name, plugin_id, debug=False):
+    def __init__(self, name, plugin_id, filepath=None, debug=False):
         '''Initialize a plugin object for an XBMC addon.'''
         self._name = name
+        self._filepath = filepath
         self._plugin_id = plugin_id
-        self._plugin = xbmcaddon.Addon(id=self._plugin_id)
 
         # Keeps track of url routes
         self._routes = []
         self._view_functions = {}
 
         args = self.parse_commandline(sys.argv)
+
+        self._plugin = xbmcaddon.Addon(id=self._plugin_id)
+        if self._mode in debug_modes:
+            self._plugin._setup(os.path.dirname(self._filepath))
+
         self._argv0, self._argv1, self._argv2 = args
         self.handle = int(self._argv1)
 
         self.qs_args = parse_qs(self._argv2.lstrip('?'))
 
         self.scheme, self.netloc, self.path = urlparse(self._argv0)
+
+        self._cache_path = xbmc.translatePath('special://profile/addon_data/%s/.cache' % self._plugin_id)
+
 
     def parse_commandline(self, args):
         '''Used to set up a plugin's values to the same state whether
@@ -41,6 +57,10 @@ class Plugin(object):
         (1) The url to use to jump into the plugin
         (2) A query string to go along with the url
         '''
+        # Choose 'interactive' as the default case if no args provided.
+        if len(args) < 2:
+            args.append('interactive')
+
         if args[1] in ['test', 'interactive', 'crawl']:
             self._mode = args[1]
             # Default url and qs if none is provided
@@ -65,7 +85,7 @@ class Plugin(object):
     def register_module(self, module, url_prefix):
         '''Registers a module with a plugin. Requires a url_prefix that
         will then enable calls to url_for.'''
-        module.plugin = self
+        module._plugin = self
         for func in module._register_funcs:
             func(self, url_prefix)
 
@@ -110,6 +130,14 @@ class Plugin(object):
         raise NotFoundException
 
     ## XBMC stuff -------------------------------------------------------------
+    def cache_fn(self, path):
+        #if not os.path.exists(self._cache_path):
+            #os.mkdir(self._cache_path)
+        return os.path.join(self._cache_path, path)
+
+    def temp_fn(self, path):
+        return os.path.join(xbmc.translatePath('special://temp'), path)
+
     def get_string(self, stringid):
         return self._plugin.getLocalizedString(stringid)
 
@@ -118,15 +146,16 @@ class Plugin(object):
         assert content in contents, 'Content type not recognized.'
         xbmcplugin.setContent(self.handle, content)
 
-    #def get_setting(self, key, pickled_value=False):
+    def get_setting(self, key):
         #if pickled_value:
             #return pickle.loads(self._plugin.getSetting(key))
-        #return self._plugin.getSetting(id=key)
+        return self._plugin.getSetting(id=key)
 
     #def set_setting(self, key, val, pickled_value=False):
+    def set_setting(self, key, val):
         #if pickled_value:
             #return self._plugin.setSetting(key, pickle.dumps(val))
-        #return self._plugin.setSetting(id=key, value=val)
+        return self._plugin.setSetting(id=key, value=val)
 
     def _make_listitem(self, label, label2='', iconImage='', thumbnail='',
                        path='', **options):
@@ -140,17 +169,19 @@ class Plugin(object):
             li.setProperty('IsPlayable', 'true')
 
         if options.get('context_menu'):
-            endpoint = options['context_menu'].get('add_to_playlist')
-            if endpoint:
+            li.addContextMenuItems(options['context_menu'])
+
+            #endpoint = options['context_menu'].get('add_to_playlist')
+            #if endpoint:
                 #keys = ['label', 'label2', 'icon', 'thumbnail', 'path', 'info']
 
                 # need the url for calling add_to_playlist this is thwat gets added to the context menu
                 # need the current url for the item, it will be encoded in teh url for calling add_to_playlist
                 # also other info in [keys] will be added to teh add_to_playlist url's qs so we can recreate the listitem
                 # perhaps try pickling the listitem?
-                current_url = options.get('url')
-                context_menu_url = self.url_for(endpoint, url=options.get('url'), label=label, label2=label2, iconImage=iconImage, thumbnail=thumbnail) 
-                li.addContextMenuItems([('Add to Playlist', 'XBMC.RunPlugin(%s)' % context_menu_url)])
+                #current_url = options.get('url')
+                #context_menu_url = self.url_for(endpoint, url=options.get('url'), label=label, label2=label2, iconImage=iconImage, thumbnail=thumbnail) 
+                #li.addContextMenuItems([('Add to Playlist', 'XBMC.RunPlugin(%s)' % context_menu_url)])
 
         #return li
         return options['url'], li, options.get('is_folder', True)
@@ -215,7 +246,15 @@ class Plugin(object):
         '''Manually sets some vars on the current instance. Used instead of
         calling __init__ on an instance.'''
         # Manually forge some properties since we aren't reinitializing our plugin.
-        self._argv0, _, self._argv2 = url.partition('?')
+        # no partition in python 2.4
+        #self._argv0, _, self._argv2 = url.partition('?')
+        parts = url.split('?', 1)
+        self._argv0 = parts[0]
+        if len(parts) == 2:
+            self._argv2 = parts[1]
+        else:
+            self._argv2 = ''
+
         self.qs_args = parse_qs(self._argv2.lstrip('?'))
         self.scheme, self.netloc, self.path = urlparse(self._argv0)
 
@@ -233,11 +272,18 @@ class Plugin(object):
         inp = raw_input('Choose an item or "q" to quit: ')
         while inp != 'q':
             # Choose the selected url
-            url = urls[int(inp) - 1]
-            urls = self._fake_run(url)
-
-            inp = raw_input('Choose an item or "q" to quit: ')
-            print '--\n' 
+            try:
+                url = urls[int(inp) - 1]
+            except ValueError:
+                # Passed something that cound't be converted with int()
+                inp = raw_input('You entered a non-integer. Choice must be an integer or "q": ')
+            except IndexError:
+                # Passed an integer that was out of range of the list of urls
+                inp = raw_input('You entered an invalid integer. Choice must be from above url list or "q": ')
+            else:
+                print '--\n' 
+                urls = self._fake_run(url)
+                inp = raw_input('Choose an item or "q" to quit: ')
 
     def crawl(self):
         '''Performs a breadth-first crawl of all possible routes from the
@@ -261,6 +307,11 @@ class Plugin(object):
             # Filter new urls by checking against urls_visited and urls_tovisit sets
             urls = filter(lambda u: u not in visited and u not in to_visit, urls)
             to_visit.extend(urls)
+
+    def redirect(self, url):
+        '''Used when you need to redirect to another view, and you only have the final
+        plugin:// url.'''
+        return self._fake_run(url)
 
     def run(self):
         '''The main entry point for a plugin. Will route to the proper view

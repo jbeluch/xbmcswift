@@ -1,3 +1,11 @@
+def _requires_plugin(f):
+    '''A decorator to trap errors when the module hasn't been initialized.'''
+    def wrapped(module, *args, **kwargs):
+        if module._plugin:
+            return f(self, *args, **kwargs)
+        raise Exception, 'Must register module with an application to use this method.'
+    return wrapped
+
 class Module(object):
     # All modules will keep their method names local, so without their module name prefixed
     # the show_videos module in mit will be called show_videos, not mit.show_videos
@@ -7,6 +15,7 @@ class Module(object):
         self._view_functions = {}
         self._routes = []
         self._register_funcs = []
+        self._plugin = None
 
     def route(self, url_rule, default=False, name=None, **options):
         def decorator(f):
@@ -16,7 +25,8 @@ class Module(object):
         return decorator
 
     def url_for(self, endpoint, **items):
-        full_endpoint = '%s.%s' % (self._namespace, endpoint)
+        #full_endpoint = '%s.%s' % (self._namespace, endpoint)
+        full_endpoint = endpoint
 
         try:
             return self._plugin.url_for(full_endpoint, **items)
@@ -29,17 +39,10 @@ class Module(object):
         def register_rule(plugin, url_prefix):
             full_url_rule = url_prefix + url_rule
             plugin.add_url_rule(full_url_rule, view_func, name, default, **options)
-            self._plugin = plugin
 
         self._register_funcs.append(register_rule)
 
-    @property
-    def parent_plugin(self):
-        return self._plugin
 
-    #@parent_plugin.setter
-    #def plugin(self, plugin):
-        #self._plugin = plugin
     @property
     def qs_args(self):
         if not self._plugin:
@@ -61,3 +64,36 @@ class Module(object):
     @property
     def url_prefix(self):
         return self._url_prefix
+
+    # Proxies to parent plugin
+    @_requires_plugin
+    def get_string(self, stringid):
+        return self._plugin.get_string(stringid)
+
+    @_requires_plugin
+    def set_content(self, content):
+        return self._plugin.set_content(content)
+
+    @_requires_plugin
+    def add_items(self, iterable):
+        return self._plugin.add_items(iterable)
+
+    @_requires_plugin
+    def add_to_playlist(self, items, playlist='video'):
+        return self._plugin.add_to_playlist(items, playlist)
+
+    @_requires_plugin
+    def set_resolved_url(self, url):
+        return self._plugin.set_resolved_url(url)
+
+    @_requires_plugin
+    def get_setting(self, key):
+        return self._plugin.get_setting(key)
+
+    @_requires_plugin
+    def set_setting(self, key, val):
+        return self._plugin.set_setting(key, val)
+
+
+
+

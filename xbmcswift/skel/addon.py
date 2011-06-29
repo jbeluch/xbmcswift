@@ -1,21 +1,28 @@
 #!/usr/bin/env python
-from resources.lib.xbmcswift.plugin import XBMCSwiftPlugin
-from resources.lib.xbmcswift.common import download_page
+from xbmcswift import Plugin, download_page
 from BeautifulSoup import BeautifulSoup as BS, SoupStrainer as SS
 from urlparse import urljoin
 import re
 
-__plugin__ = '{plugin_name}'
+__plugin_name__ = '{plugin_name}'
 __plugin_id__ = '{plugin_id}'
 
-plugin = XBMCSwiftPlugin(__plugin__, __plugin_id__)
+plugin = Plugin(__plugin_name__, __plugin_id__)
 
-#### Write your handlers here ####
+#### Plugin Views ####
 
-# Default Handler
-#@plugin.route('/', default=True)
-#def show_categories():
-    #pass
+# Default View
+@plugin.route('/')
+def show_categories():
+    items = [
+        {'label': 'Show Topics', 'url': plugin.url_for('show_topics')},
+    ]
+    return plugin.add_items(items)
+
+@plugin.route('/topics/')
+def show_topics():
+    pass
+
 
 if __name__ == '__main__': 
     plugin.run()
