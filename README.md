@@ -4,7 +4,7 @@ xbmcswift
 A micro framework to enable rapid development of XBMC plugins.
 
 ## Version
-0.1
+0.1.1  
 Currently under heavy development. Will be adding some full documentation soon.
 
 
@@ -18,5 +18,5 @@ Currently under heavy development. Will be adding some full documentation soon.
   query strings.
 
 ## Contact
-https://github.com/jbeluch/xbmcswift
+https://github.com/jbeluch/xbmcswift  
 xbmc@jonathanbeluch.com
