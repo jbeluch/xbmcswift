@@ -18,7 +18,7 @@ setup(
     keywords = "example documentation tutorial",
     #url = '',
     packages=find_packages(),
-    long_description=read('README.md'),
+    long_description=read('../README.md'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
