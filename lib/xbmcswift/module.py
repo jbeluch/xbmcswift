@@ -2,7 +2,7 @@ def _requires_plugin(f):
     '''A decorator to trap errors when the module hasn't been initialized.'''
     def wrapped(module, *args, **kwargs):
         if module._plugin:
-            return f(self, *args, **kwargs)
+            return f(module, *args, **kwargs)
         raise Exception, 'Must register module with an application to use this method.'
     return wrapped
 
