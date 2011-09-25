@@ -190,7 +190,8 @@ class Plugin(object):
         #return li
         return options['url'], li, options.get('is_folder', True)
 
-    def add_items(self, iterable):
+    def add_items(self, iterable, is_update=False):
+        # Set is_update to True if this is only an update and not a subfolder, useful for paginations
         # If we are in debug mode, do not make the call to xbmc
         # for each item
         #   if in debug mode, print it to command line
@@ -217,7 +218,7 @@ class Plugin(object):
         if self._mode is 'xbmc':
             if not xbmcplugin.addDirectoryItems(self.handle, items, len(items)):
                 raise Exception, 'problem?'
-            xbmcplugin.endOfDirectory(self.handle)
+            xbmcplugin.endOfDirectory(self.handle, updateListing=is_update)
 
         return urls
 
