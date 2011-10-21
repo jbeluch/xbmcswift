@@ -7,7 +7,7 @@ import re
 __plugin_name__ = '{plugin_name}'
 __plugin_id__ = '{plugin_id}'
 
-plugin = Plugin(__plugin_name__, __plugin_id__)
+plugin = Plugin(__plugin_name__, __plugin_id__, __file__)
 
 #### Plugin Views ####
 
